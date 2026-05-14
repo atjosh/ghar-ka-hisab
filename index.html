@@ -249,7 +249,7 @@ function api(params, cb) {
   var cbName = '_jsonp_' + Date.now() + '_' + Math.floor(Math.random()*99999);
   params.callback = cbName;
   var url = WEB_APP + '?' + Object.keys(params).map(function(k){
-    return encodeURIComponent(k)+'='+encodeURIComponent(params[k]);
+    return k+'='+encodeURIComponent(String(params[k]));
   }).join('&');
 
   var timeout = setTimeout(function(){
@@ -455,13 +455,15 @@ function saveEdit(){
   var amt=parseFloat(document.getElementById('eamt').value);
   var dsc=document.getElementById('edsc').value.trim();
   if(!amt||amt<=0){ showToast('Enter a valid amount'); return; }
+  var localId=actId; // capture before any async/close clears it
+  var localWho=eSelP;
   var btn=document.getElementById('save-edit-btn');
   btn.textContent='Saving...'; btn.disabled=true;
   setSyncStatus('loading','Updating expense...');
-  api({action:'updateExpense', id:actId, who:eSelP, amount:amt, desc:dsc}, function(err, data) {
+  api({action:'updateExpense', id:localId, who:localWho, amount:amt, desc:dsc}, function(err, data) {
     btn.textContent='Save Changes'; btn.disabled=false;
     if(err||!data||!data.success){ setSyncStatus('err','Update failed'); showToast('⚠️ Error updating — try again'); return; }
-    cachedExpenses=cachedExpenses.map(function(e){ return e.id===actId?{id:e.id,ts:e.ts,year:e.year,month:e.month,who:eSelP,amount:amt,desc:dsc}:e; });
+    cachedExpenses=cachedExpenses.map(function(e){ return e.id===localId?{id:e.id,ts:e.ts,year:e.year,month:e.month,who:localWho,amount:amt,desc:dsc}:e; });
     actId=null; closeEdit();
     setSyncStatus('ok','Synced with Google Sheets');
     refreshUI(); showToast('\u2705 Expense updated!');
@@ -480,13 +482,14 @@ function openDelConf(){
 }
 function closeDel(){ actId=null; document.getElementById('dmov').classList.remove('on'); }
 function confDel(){
+  var localId=actId; // capture before async clears it
   var btn=document.getElementById('conf-del-btn');
   btn.textContent='Deleting...'; btn.disabled=true;
   setSyncStatus('loading','Deleting expense...');
-  api({action:'deleteExpense', id:actId}, function(err, data) {
+  api({action:'deleteExpense', id:localId}, function(err, data) {
     btn.textContent='Yes, Delete'; btn.disabled=false;
     if(err||!data||!data.success){ setSyncStatus('err','Delete failed'); showToast('⚠️ Error deleting — try again'); closeDel(); return; }
-    cachedExpenses=cachedExpenses.filter(function(e){ return e.id!==actId; });
+    cachedExpenses=cachedExpenses.filter(function(e){ return e.id!==localId; });
     actId=null;
     document.getElementById('dmov').classList.remove('on');
     setSyncStatus('ok','Synced with Google Sheets');
